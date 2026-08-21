@@ -1,0 +1,29 @@
+# Core & Parsing
+tree-sitter>=0.21.0
+tree-sitter-python>=0.21.0
+gitpython>=3.1.40
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.1
+
+# Graph & Vector Storage
+neo4j>=5.19.0
+chromadb>=0.5.0
+
+# LLM & Agent Framework
+ollama>=0.2.0
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-community>=0.2.0
+langchain-ollama>=0.1.0
+langgraph>=0.0.50
+
+# CLI, UI & Logging
+typer>=0.12.0
+streamlit>=1.35.0
+loguru>=0.7.2
+rich>=13.7.1
+
+# Evaluation & Testing
+ragas>=0.1.9
+pytest>=8.2.0
