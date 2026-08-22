@@ -60,9 +60,12 @@ def loaded_graph(neo4j_conn):
 
 class TestGraphLoading:
     def test_nodes_present_in_neo4j(self, neo4j_conn, loaded_graph):
-        """Verify node counts in Neo4j match parsed nodes."""
+        """Verify node counts in Neo4j match distinct parsed node IDs."""
         results = neo4j_conn.run_query("MATCH (n) RETURN count(n) AS total_nodes")
-        assert results[0]["total_nodes"] >= loaded_graph.node_count()
+        distinct_node_ids = {n.id for n in loaded_graph.nodes}
+        assert results[0]["total_nodes"] == len(distinct_node_ids)
+
+
 
     def test_user_service_calls_repository_in_neo4j(self, neo4j_conn, loaded_graph):
         """Verify CALLS edge in Neo4j: create_user -> save."""

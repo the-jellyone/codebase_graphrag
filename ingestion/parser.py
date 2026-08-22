@@ -434,10 +434,11 @@ def _py_resolve_call(
         if not obj or obj == "self" or obj == "cls":
             return None
 
-        if obj in import_map:
+        if obj in import_map and attr:
             return _node_id(import_map[obj], attr)
 
         return None  # unresolvable — skip, never guess
+
 
     elif func_child.type == "identifier":
         name = _node_text(func_child, source)
@@ -719,11 +720,16 @@ def _node_text(node: Optional[Node], source: str) -> str:
     if node is None:
         return ""
     try:
-        return node.text.decode("utf-8", errors="ignore")
+        if node.text is not None:
+            return node.text.decode("utf-8", errors="ignore")
     except Exception:
+        pass
+    try:
         start = node.start_byte
         end   = node.end_byte
         return source.encode("utf-8", errors="ignore")[start:end].decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
 
 
 def _child_text(node: Node, source: str, field: str) -> Optional[str]:
@@ -733,9 +739,12 @@ def _child_text(node: Node, source: str, field: str) -> Optional[str]:
 
 def _read_source_from_node(node: Node) -> str:
     try:
-        return node.text.decode("utf-8", errors="ignore")
+        if node.text is not None:
+            return node.text.decode("utf-8", errors="ignore")
     except Exception:
-        return ""
+        pass
+    return ""
+
 
 
 def _py_docstring(node: Node, source: str) -> Optional[str]:

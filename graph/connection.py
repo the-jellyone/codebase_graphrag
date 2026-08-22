@@ -7,7 +7,7 @@ Handles connection pooling, authentication, health checks, and query execution.
 from __future__ import annotations
 import os
 from typing import Any, Optional
-from neo4j import GraphDatabase, Driver, Session
+from neo4j import GraphDatabase, Driver, Session, Query
 from loguru import logger
 from dotenv import load_dotenv
 
@@ -67,8 +67,9 @@ class Neo4jConnection:
         """Execute a Cypher query and return the results as a list of dictionaries."""
         driver = self.get_driver()
         with driver.session() as session:
-            result = session.run(query, parameters or {})
+            result = session.run(Query(text=query), parameters or {})
             return [record.data() for record in result]
+
 
     def execute_write(self, func, *args, **kwargs):
         """Execute a transactional write function."""

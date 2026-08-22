@@ -7,8 +7,9 @@ and loads all nodes and relationships into Neo4j using transactional batch UNWIN
 
 from __future__ import annotations
 from typing import Any, Optional
-from neo4j import Driver, Transaction
+from neo4j import Driver, Transaction, Query
 from loguru import logger
+
 
 from ingestion.models import ParseResult, ParsedNode, ParsedEdge, NodeType, EdgeType
 from embeddings.generator import OllamaEmbeddingGenerator
@@ -92,7 +93,7 @@ def _load_nodes(nodes: list[ParsedNode], driver: Driver, batch_size: int = 100) 
                 MERGE (n:{label} {{id: data.id}})
                 SET n += data
                 """
-                session.run(query, {"batch": chunk})
+                session.run(Query(text=query), {"batch": chunk})
             logger.debug(f"Inserted {len(batch_list)} nodes of type ':{label}'")
 
 
@@ -123,5 +124,6 @@ def _load_edges(edges: list[ParsedEdge], driver: Driver, batch_size: int = 100) 
                 MERGE (s)-[r:{rel_type}]->(t)
                 SET r += data.props
                 """
-                session.run(query, {"batch": chunk})
+                session.run(Query(text=query), {"batch": chunk})
             logger.debug(f"Inserted {len(batch_list)} edges of type '[:{rel_type}]'")
+
