@@ -29,13 +29,15 @@ class NodeType(str, Enum):
 
 class EdgeType(str, Enum):
     """Mirrors the KG schema edge types from context.md."""
-    CALLS      = "CALLS"
-    IMPORTS    = "IMPORTS"
-    INHERITS   = "INHERITS"
-    RAISES     = "RAISES"
-    HAS_METHOD = "HAS_METHOD"
-    READS      = "READS"
-    CONTAINS   = "CONTAINS"
+    CALLS        = "CALLS"
+    IMPORTS      = "IMPORTS"
+    INHERITS     = "INHERITS"
+    RAISES       = "RAISES"
+    HAS_METHOD   = "HAS_METHOD"
+    READS        = "READS"
+    CONTAINS     = "CONTAINS"
+    DEFINES_TYPE = "DEFINES_TYPE"
+    USES_TYPE    = "USES_TYPE"
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +49,7 @@ class ParsedNode(BaseModel):
     A single extracted code entity (function, class, module, etc.).
 
     `id` is constructed as "<file_path>::<name>" to be globally unique
-    across the entire repo so Neo4j and ChromaDB can share the same key.
+    across the entire repo so Neo4j and vector index can share the same key.
     """
     model_config = ConfigDict(use_enum_values=True)
 
@@ -58,6 +60,8 @@ class ParsedNode(BaseModel):
     line:        Optional[int] = None # start line number
     docstring:   Optional[str] = None
     source_code: Optional[str] = None # full source text of the node
+    embedding:   Optional[list[float]] = None # vector embedding (from Ollama)
+
 
 
 # ---------------------------------------------------------------------------
