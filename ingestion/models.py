@@ -61,6 +61,8 @@ class ParsedNode(BaseModel):
     docstring:   Optional[str] = None
     source_code: Optional[str] = None # full source text of the node
     embedding:   Optional[list[float]] = None # vector embedding (from Ollama)
+    file_hash:   Optional[str] = None # SHA-256 hash of file content (set on Module nodes)
+
 
 
 

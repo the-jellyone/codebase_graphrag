@@ -2,6 +2,8 @@
 Neo4j driver connection manager.
 
 Handles connection pooling, authentication, health checks, and query execution.
+Supports database selection for test isolation (tests use 'test' database,
+production uses default 'neo4j' database).
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ load_dotenv()
 DEFAULT_NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 DEFAULT_NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 DEFAULT_NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
+DEFAULT_NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
 
 
 class Neo4jConnection:
@@ -26,16 +29,18 @@ class Neo4jConnection:
         uri: Optional[str] = None,
         user: Optional[str] = None,
         password: Optional[str] = None,
+        database: Optional[str] = None,
     ):
         self.uri = uri or DEFAULT_NEO4J_URI
         self.user = user or DEFAULT_NEO4J_USER
         self.password = password or DEFAULT_NEO4J_PASSWORD
+        self.database = database or DEFAULT_NEO4J_DATABASE
         self._driver: Optional[Driver] = None
 
     def get_driver(self) -> Driver:
         """Get or initialize the Neo4j Driver instance."""
         if self._driver is None:
-            logger.info(f"Connecting to Neo4j at {self.uri} (user: {self.user})...")
+            logger.info(f"Connecting to Neo4j at {self.uri} (user: {self.user}, db: {self.database})...")
             try:
                 self._driver = GraphDatabase.driver(
                     self.uri,
@@ -63,16 +68,18 @@ class Neo4jConnection:
             self._driver = None
             logger.info("Neo4j driver closed")
 
+    def get_session(self) -> Session:
+        """Get a new session bound to the configured database."""
+        driver = self.get_driver()
+        return driver.session(database=self.database)
+
     def run_query(self, query: str, parameters: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
         """Execute a Cypher query and return the results as a list of dictionaries."""
-        driver = self.get_driver()
-        with driver.session() as session:
+        with self.get_session() as session:
             result = session.run(Query(text=query), parameters or {})
             return [record.data() for record in result]
 
-
     def execute_write(self, func, *args, **kwargs):
         """Execute a transactional write function."""
-        driver = self.get_driver()
-        with driver.session() as session:
+        with self.get_session() as session:
             return session.execute_write(func, *args, **kwargs)

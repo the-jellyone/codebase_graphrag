@@ -81,6 +81,8 @@ def _load_nodes(nodes: list[ParsedNode], driver: Driver, batch_size: int = 100) 
             props["source_code"] = node.source_code
         if node.embedding is not None:
             props["embedding"] = node.embedding
+        if node.file_hash is not None:
+            props["file_hash"] = node.file_hash
 
         grouped.setdefault(label, []).append(props)
 

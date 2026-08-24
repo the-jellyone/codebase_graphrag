@@ -32,6 +32,7 @@ TypeScript (.ts / .tsx)
 
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 from typing import Optional
@@ -98,6 +99,34 @@ def parse_repo(repo_path: Path) -> ParseResult:
     return result
 
 
+def parse_single_file(file_path: Path, repo_root: Path) -> ParseResult:
+    """
+    Parse a single file and return its nodes and edges.
+
+    Used by the incremental updater to re-parse only changed files
+    instead of the entire repository.
+    """
+    file_path = Path(file_path).resolve()
+    repo_root = Path(repo_root).resolve()
+    result = ParseResult(repo_path=str(repo_root))
+
+    suffix = file_path.suffix.lower()
+    if suffix == ".py":
+        _parse_python_file(file_path, repo_root, result)
+    elif suffix in (".ts", ".tsx"):
+        _parse_typescript_file(file_path, repo_root, result)
+    else:
+        logger.warning(f"Unsupported file type: {file_path.suffix}")
+
+    return result
+
+
+def compute_file_hash(file_path: Path) -> str:
+    """Compute SHA-256 hash of a file's content."""
+    content = Path(file_path).read_bytes()
+    return hashlib.sha256(content).hexdigest()
+
+
 # ---------------------------------------------------------------------------
 # File collection
 # ---------------------------------------------------------------------------
@@ -131,12 +160,13 @@ def _parse_python_file(filepath: Path, repo_root: Path, result: ParseResult) -> 
     rel_path   = str(filepath.relative_to(repo_root))
     module_id  = _module_id(rel_path)
 
-    # Module node
+    # Module node (with file hash for incremental updates)
     result.nodes.append(ParsedNode(
         id=module_id,
         type=NodeType.MODULE,
         name=_module_name(rel_path),
         file=rel_path,
+        file_hash=hashlib.sha256(source_bytes).hexdigest(),
     ))
 
     # Build import map: local alias → rel_path of the imported module
@@ -544,12 +574,13 @@ def _parse_typescript_file(filepath: Path, repo_root: Path, result: ParseResult)
     rel_path  = str(filepath.relative_to(repo_root))
     module_id = _module_id(rel_path)
 
-    # Module node
+    # Module node (with file hash for incremental updates)
     result.nodes.append(ParsedNode(
         id=module_id,
         type=NodeType.MODULE,
         name=_module_name(rel_path),
         file=rel_path,
+        file_hash=hashlib.sha256(source_bytes).hexdigest(),
     ))
 
     _ts_extract_imports(root, module_id, rel_path, repo_root, source_text, result)

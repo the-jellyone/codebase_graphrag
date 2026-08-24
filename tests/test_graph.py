@@ -26,14 +26,24 @@ TEST_REPO = Path(__file__).parent.parent / "test_repo"
 
 @pytest.fixture(scope="module")
 def neo4j_conn():
-    """Create a live connection to local Neo4j Docker container."""
+    """
+    Create a live connection to local Neo4j Docker container.
+    After ALL tests complete, restore the graph to a clean state.
+    """
     conn = Neo4jConnection()
     try:
         conn.verify_connectivity()
     except Exception as exc:
         pytest.skip(f"Local Neo4j is not reachable at {conn.uri}: {exc}")
     yield conn
+
+    # TEARDOWN: Always restore the graph after tests
+    driver = conn.get_driver()
+    clear_database(driver)
+    parsed_result = parse_repo(TEST_REPO)
+    load_parsed_repo_into_graph(parsed_result, driver=driver, generate_embeddings=False)
     conn.close()
+
 
 
 @pytest.fixture(scope="module")
