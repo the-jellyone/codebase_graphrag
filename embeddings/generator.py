@@ -19,7 +19,8 @@ from embeddings.formatter import format_node_for_embedding, should_embed_node
 load_dotenv()
 
 DEFAULT_OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-DEFAULT_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "qwen3-embed-0.6b")
+DEFAULT_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+
 
 
 class OllamaEmbeddingGenerator:

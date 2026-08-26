@@ -45,6 +45,7 @@ def setup_schema(
             logger.debug(f"Ensured constraint: {constraint_name}")
 
         # 2. Vector Index for Functions
+        session.run(f"DROP INDEX {FUNCTION_VECTOR_INDEX_NAME} IF EXISTS")
         fn_vector_query = f"""
         CREATE VECTOR INDEX {FUNCTION_VECTOR_INDEX_NAME} IF NOT EXISTS
         FOR (f:Function) ON (f.embedding)
@@ -59,6 +60,7 @@ def setup_schema(
         logger.debug(f"Ensured vector index: {FUNCTION_VECTOR_INDEX_NAME} (dim={embedding_dimension})")
 
         # 3. Vector Index for Classes
+        session.run(f"DROP INDEX {CLASS_VECTOR_INDEX_NAME} IF EXISTS")
         cls_vector_query = f"""
         CREATE VECTOR INDEX {CLASS_VECTOR_INDEX_NAME} IF NOT EXISTS
         FOR (c:Class) ON (c.embedding)
