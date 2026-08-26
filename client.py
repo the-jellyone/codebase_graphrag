@@ -57,12 +57,13 @@ def get_llm(model_name: str | None = None) -> Any:
         messages.append({"role": "user", "content": prompt})
 
         try:
+            # pyrefly: ignore [no-matching-overload]
             stream = client.chat(
                 model=target_model,
                 messages=messages,
                 stream=True,
                 options={
-                    "temperature": 0.1,
+                    "temperature": 0.2,
                     "num_ctx": 8192,
                     "num_predict": 1024,
                     "top_p": 0.9,

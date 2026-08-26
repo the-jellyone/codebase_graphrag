@@ -64,4 +64,4 @@ htmlcov/
 
 # Local Notes / Context
 context.md
-
+node_modules/

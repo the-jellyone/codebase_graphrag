@@ -22,6 +22,8 @@ langgraph>=0.0.50
 
 # CLI, UI & Logging
 typer>=0.12.0
+fastapi>=0.110.0
+uvicorn>=0.28.0
 streamlit>=1.35.0
 loguru>=0.7.2
 rich>=13.7.1

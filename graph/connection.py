@@ -83,3 +83,37 @@ class Neo4jConnection:
         """Execute a transactional write function."""
         with self.get_session() as session:
             return session.execute_write(func, *args, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Module-level Singleton Helpers
+# ---------------------------------------------------------------------------
+
+_global_connection: Optional[Neo4jConnection] = None
+
+
+def get_driver() -> Driver:
+    """Get global Neo4j driver instance."""
+    global _global_connection
+    if _global_connection is None:
+        _global_connection = Neo4jConnection()
+    return _global_connection.get_driver()
+
+
+def close_driver() -> None:
+    """Close global Neo4j driver connection."""
+    global _global_connection
+    if _global_connection is not None:
+        _global_connection.close()
+        _global_connection = None
+
+
+def check_connection() -> bool:
+    """Check if local Neo4j database is reachable."""
+    try:
+        driver = get_driver()
+        driver.verify_connectivity()
+        return True
+    except Exception:
+        return False
+
