@@ -65,3 +65,6 @@ htmlcov/
 # Local Notes / Context
 context.md
 node_modules/
+
+# Agent run logs — local execution data, not source
+runs/
