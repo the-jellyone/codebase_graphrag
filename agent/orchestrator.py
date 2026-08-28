@@ -78,16 +78,28 @@ def _format_tool_results(tool_calls: list) -> str:
 
 
 def _extract_json(raw: str) -> dict:
-    """Extract JSON from model output that may be wrapped in markdown fences."""
+    """Extract JSON from model output that may be wrapped in markdown fences or include commentary."""
     raw = raw.strip()
+    # 1. Look for markdown code fence
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
     if match:
-        return json.loads(match.group(1))
-    # Try to find bare JSON object
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if match:
-        return json.loads(match.group(0))
-    raise ValueError(f"No JSON found in model output: {raw[:200]}")
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    # 2. Extract using json.JSONDecoder.raw_decode from the first '{'
+    idx = raw.find("{")
+    while idx != -1:
+        try:
+            obj, _ = json.JSONDecoder().raw_decode(raw[idx:])
+            if isinstance(obj, dict):
+                return obj
+        except json.JSONDecodeError:
+            pass
+        idx = raw.find("{", idx + 1)
+
+    raise ValueError(f"No valid JSON found in model output: {raw[:200]}")
 
 
 def orchestrator_node(state: AgentState) -> AgentState:

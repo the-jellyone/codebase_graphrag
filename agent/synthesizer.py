@@ -84,10 +84,21 @@ def _extract_json(raw: str) -> dict:
     raw = raw.strip()
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
     if match:
-        return json.loads(match.group(1))
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if match:
-        return json.loads(match.group(0))
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    idx = raw.find("{")
+    while idx != -1:
+        try:
+            obj, _ = json.JSONDecoder().raw_decode(raw[idx:])
+            if isinstance(obj, dict):
+                return obj
+        except json.JSONDecodeError:
+            pass
+        idx = raw.find("{", idx + 1)
+
     raise ValueError(f"No JSON found in synthesizer output: {raw[:200]}")
 
 

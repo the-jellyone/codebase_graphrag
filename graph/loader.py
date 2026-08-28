@@ -35,7 +35,7 @@ def load_parsed_repo_into_graph(
     logger.info("=" * 60)
 
     # 1. Embeddings
-    dim = 1536
+    dim = 1024
     if generate_embeddings:
         gen = embedder or OllamaEmbeddingGenerator()
         try:

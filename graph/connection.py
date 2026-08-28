@@ -17,7 +17,7 @@ load_dotenv()
 
 DEFAULT_NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 DEFAULT_NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-DEFAULT_NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
+DEFAULT_NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 DEFAULT_NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
 
 

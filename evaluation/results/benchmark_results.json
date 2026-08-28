@@ -1,0 +1,157 @@
+{
+  "timestamp": "2026-08-29 00:03:19",
+  "model": "granite4.1:3b",
+  "single_shot": [
+    {
+      "id": "eval_01",
+      "category": "impact_analysis",
+      "question": "If I modify repository.save, what services and API routes are directly or indirectly impacted?",
+      "answer": "Based on the information provided (\u201cNo relevant code entities found in Knowledge Graph.\u201d), there is insufficient data in the knowledge graph to determine which services or API routes are directly or indirectly impacted by modifying the `repository.save` method. To answer this question accurately, we would need access to the codebase or a knowledge graph that includes references to how `repository.save` is used across various services and API endpoints. Without those details, it\u2019s not possible to identify any potential impacts. If you can provide the relevant code entities or a more detailed graph context, I\u2019d be able to assist further.",
+      "recall": 0.0,
+      "precision": 0.5,
+      "f1": 0.0,
+      "fact_overlap": 0.059,
+      "time_seconds": 11.32
+    },
+    {
+      "id": "eval_02",
+      "category": "impact_analysis",
+      "question": "What functions break or need updating if user_service.get_user is modified?",
+      "answer": "Based on the provided graph context (\u201cNo relevant code entities found in Knowledge Graph.\u201d), there is insufficient information to determine which functions would break or require updating if the `user_service.get_user` method is modified. To answer this question accurately, specific code entities or a detailed codebase would need to be available in the knowledge graph to identify dependencies on `user_service.get_user`. Without those entities, it\u2019s not possible to ascertain which other functions rely on or call `get_user` and might be affected by any changes.",
+      "recall": 0.333,
+      "precision": 0.5,
+      "f1": 0.4,
+      "fact_overlap": 0.037,
+      "time_seconds": 6.99
+    },
+    {
+      "id": "eval_03",
+      "category": "exception_flow",
+      "question": "What exceptions can be raised during the execution of routes.create_user?",
+      "answer": "The provided graph context indicates that there are no relevant code entities found in the Knowledge Graph. This means that there is insufficient information within the graph to determine which exceptions can be raised during the execution of the `routes.create_user` function. To answer this question accurately, additional code context or documentation related to the implementation of `create_user` would be necessary.",
+      "recall": 0.0,
+      "precision": 0.5,
+      "f1": 0.0,
+      "fact_overlap": 0.049,
+      "time_seconds": 4.52
+    },
+    {
+      "id": "eval_04",
+      "category": "config_dependency",
+      "question": "Which functions in the codebase read config.DB_URL?",
+      "answer": "The provided graph context indicates that there are no relevant code entities (such as functions or variables) found in the Knowledge Graph related to reading the config.DB_URL. Therefore, based on the available information, it is not possible to identify which functions in the codebase currently read or access config.DB_URL. To determine this, you would need to examine the source code directly or consult additional code metadata that maps functions to their respective usages of config.DB_URL.",
+      "recall": 0.5,
+      "precision": 1.0,
+      "f1": 0.667,
+      "fact_overlap": 0.041,
+      "time_seconds": 5.61
+    },
+    {
+      "id": "eval_05",
+      "category": "call_chain",
+      "question": "Does task_service.create_task depend on user_service? Trace the full call chain.",
+      "answer": "The provided graph context indicates that there are no relevant code entities found in the Knowledge Graph. This means we do not have the necessary information or structure (such as function call relationships, imports, or dependencies) to determine whether **task_service.create_task** depends on **user_service** or to trace the full call chain between them. \n\nTo answer this question, we would typically look for a call graph or dependency mapping that shows how **create_task** is invoked and what services or modules it interacts with, including any imports or calls to **user_service**. Since such information is absent here, we cannot conclude the dependency relationship based on the current data.",
+      "recall": 0.333,
+      "precision": 1.0,
+      "f1": 0.5,
+      "fact_overlap": 0.059,
+      "time_seconds": 7.8
+    },
+    {
+      "id": "eval_06",
+      "category": "call_chain",
+      "question": "What is the complete validation and persistence workflow when creating a new user?",
+      "answer": "The graph context you provided indicates that there are no relevant code entities (such as classes, functions, or modules) stored in the Knowledge Graph that pertain to the validation and persistence workflow for creating a new user. Without specific code references or a detailed system architecture outlined in the graph, it\u2019s not possible to detail the complete validation and persistence workflow from the information given.\n\nTo answer your question comprehensively, I would typically look for:\n\n1. **User Creation Request**: Where does the request to create a new user originate (e.g., a form submission, API call)?\n2. **Validation Logic**: What checks are performed on the user data (e.g., required fields, email uniqueness, password strength)?\n3. **Persistence Layer**: How is the validated user data stored (e.g., database schema, ORM models, persistence framework)?\n4. **Transaction Management**: Are there any transactional concerns (e.g., atomicity, ACID properties) that need to be addressed?\n5. **Error Handling and Logging**: What mechanisms are in place to handle validation failures or persistence errors, and how are these events logged?\n\nIf you can provide the relevant code entities or a more detailed description of the system architecture, I\u2019d be able to map out the complete workflow for you.",
+      "recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0,
+      "fact_overlap": 0.008,
+      "time_seconds": 15.89
+    }
+  ],
+  "agent": [
+    {
+      "id": "eval_01",
+      "category": "impact_analysis",
+      "question": "If I modify repository.save, what services and API routes are directly or indirectly impacted?",
+      "answer": "Modifying `repository.save` will impact the following services and API routes:\n\n**Directly impacted services (upstream callers):**\n- `backend/services/user_service.py::create_user`\n- `backend/services/task_service.py::create_task`\n\n**Indirectly impacted API routes (via callers):**\n- `backend/api/routes.py::create_user` (via `user_service.create_user`)\n- `backend/api/routes.py::create_task` (via `task_service.create_task`)\n\n**Other dependencies read:**\n- Reads `config.DB_URL` configuration.\n\n**Potential exceptions raised:**\n- `DatabaseException` may be raised if the save operation fails.\n\nThese are all the services and API routes identified by the trace_impact and get_call_chain results.",
+      "recall": 1.0,
+      "precision": 0.5,
+      "f1": 0.667,
+      "fact_overlap": 0.295,
+      "time_seconds": 27.7
+    },
+    {
+      "id": "eval_02",
+      "category": "impact_analysis",
+      "question": "What functions break or need updating if user_service.get_user is modified?",
+      "answer": "After multiple retrieval attempts I wasn't able to find sufficient context in the knowledge graph to fully answer this. Here's what I found: No complete answer could be assembled from retrieved data.. You may want to check user_service.get_user, backend/api/routes.py::get_user, backend/db/repository.py::find_by_id directly.",
+      "recall": 0.667,
+      "precision": 0.5,
+      "f1": 0.571,
+      "fact_overlap": 0.122,
+      "time_seconds": 25.34
+    },
+    {
+      "id": "eval_03",
+      "category": "exception_flow",
+      "question": "What exceptions can be raised during the execution of routes.create_user?",
+      "answer": "After multiple retrieval attempts I wasn't able to find sufficient context in the knowledge graph to fully answer this. Here's what I found: No complete answer could be assembled from retrieved data.. You may want to check routes.create_user, backend/services/user_service.py::create_user, routes.create_user directly.",
+      "recall": 0.0,
+      "precision": 0.5,
+      "f1": 0.0,
+      "fact_overlap": 0.075,
+      "time_seconds": 24.38
+    },
+    {
+      "id": "eval_04",
+      "category": "config_dependency",
+      "question": "Which functions in the codebase read config.DB_URL?",
+      "answer": "After multiple retrieval attempts I wasn't able to find sufficient context in the knowledge graph to fully answer this. Here's what I found: No complete answer could be assembled from retrieved data.. You may want to check the relevant source files directly.",
+      "recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0,
+      "fact_overlap": 0.0,
+      "time_seconds": 28.06
+    },
+    {
+      "id": "eval_05",
+      "category": "call_chain",
+      "question": "Does task_service.create_task depend on user_service? Trace the full call chain.",
+      "answer": "Yes, task_service.create_task does depend on user_service. The trace_impact result lists \"backend/services/user_service.py::get_user\" among its downstream callees, indicating a call from task_service.create_task to user_service. Additionally, the downstream callees include validate_string and save, which are part of the user_service implementation, further confirming the dependency.",
+      "recall": 0.667,
+      "precision": 0.5,
+      "f1": 0.571,
+      "fact_overlap": 0.147,
+      "time_seconds": 34.08
+    },
+    {
+      "id": "eval_06",
+      "category": "call_chain",
+      "question": "What is the complete validation and persistence workflow when creating a new user?",
+      "answer": "After multiple retrieval attempts I wasn't able to find sufficient context in the knowledge graph to fully answer this. Here's what I found: No complete answer could be assembled from retrieved data.. You may want to check create_user directly.",
+      "recall": 0.25,
+      "precision": 1.0,
+      "f1": 0.4,
+      "fact_overlap": 0.021,
+      "time_seconds": 42.74
+    }
+  ],
+  "summary": {
+    "total_queries": 6,
+    "single_shot": {
+      "avg_recall": 0.194,
+      "avg_precision": 0.583,
+      "avg_f1": 0.261,
+      "avg_fact_overlap": 0.042,
+      "avg_latency_s": 8.69
+    },
+    "agent": {
+      "avg_recall": 0.431,
+      "avg_precision": 0.5,
+      "avg_f1": 0.368,
+      "avg_fact_overlap": 0.11,
+      "avg_latency_s": 30.38
+    }
+  }
+}

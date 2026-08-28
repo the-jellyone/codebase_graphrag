@@ -27,7 +27,7 @@ CLASS_VECTOR_INDEX_NAME = "class_vector_index"
 
 def setup_schema(
     driver: Driver,
-    embedding_dimension: int = 1536,
+    embedding_dimension: int = 1024,
     similarity_function: str = "cosine",
 ) -> None:
     """
