@@ -27,6 +27,7 @@ export default function App() {
   const [indexingStatus, setIndexingStatus] = useState<string | null>(null);
   const [systemStatus, setSystemStatus] = useState({ online: false, neo4j: false });
   const [activeTab, setActiveTab] = useState<'chat' | 'subgraph'>('chat');
+  const [useAgent, setUseAgent] = useState(true);
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -91,8 +92,7 @@ export default function App() {
         body: JSON.stringify({
           session_id: 'default_session',
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          model_name: 'qwen3:4b',
-          embed_model: 'qwen3-embedding:0.6b',
+          use_agent: useAgent,
         }),
       });
 
@@ -245,12 +245,32 @@ export default function App() {
         
         {/* Top Bar */}
         <div style={{ height: '56px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', padding: '0 1.5rem', justifyContent: 'space-between', backgroundColor: '#0f172a' }}>
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <button
               onClick={() => setActiveTab('chat')}
               style={{ background: 'none', border: 'none', color: activeTab === 'chat' ? '#38bdf8' : '#94a3b8', fontWeight: 600, borderBottom: activeTab === 'chat' ? '2px solid #38bdf8' : 'none', padding: '0.5rem 0', cursor: 'pointer' }}
             >
               💬 Chat & Reasoning
+            </button>
+            <button
+              onClick={() => setUseAgent(!useAgent)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                padding: '0.3rem 0.65rem',
+                borderRadius: '1rem',
+                backgroundColor: useAgent ? '#0369a1' : '#1e293b',
+                color: useAgent ? '#e0f2fe' : '#94a3b8',
+                border: useAgent ? '1px solid #38bdf8' : '1px solid #334155',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <Zap size={13} color={useAgent ? '#38bdf8' : '#94a3b8'} />
+              {useAgent ? '3-Node Agent Active' : 'Single-Shot RAG'}
             </button>
           </div>
           <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.8rem', cursor: 'pointer' }}>

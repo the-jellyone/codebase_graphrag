@@ -30,8 +30,9 @@ from loguru import logger
 import ollama
 
 from graph.connection import get_driver, check_connection
-
 from retrieval.retriever import retrieve_subgraph_context
+from agent import run_agent
+from config import OLLAMA_LLM_MODEL, OLLAMA_EMBED_MODEL
 
 
 # ---------------------------------------------------------------------------
@@ -65,9 +66,13 @@ class ChatMessage(BaseModel):
 class ChatStreamRequest(BaseModel):
     session_id: str = Field(default_factory=lambda: f"session_{int(time.time())}")
     messages: list[ChatMessage]
-    model_name: str = "qwen3:4b"
-    embed_model: str = "qwen3-embedding:0.6b"
+    model_name: str = OLLAMA_LLM_MODEL
+    embed_model: str = OLLAMA_EMBED_MODEL
+    use_agent: bool = False
 
+
+class AgentRequest(BaseModel):
+    question: str
 
 
 class IndexRequest(BaseModel):
@@ -130,6 +135,18 @@ async def event_generator(
     # 1. Rewrite Query for Conversational Memory
     search_query = rewrite_conversational_query(req.messages, model=req.model_name)
 
+    # If agent mode requested
+    if req.use_agent:
+        yield f"data: {json.dumps({'type': 'status', 'content': f'Running LangGraph Agent for: {search_query}'})}\n\n"
+        try:
+            answer = run_agent(search_query)
+            yield f"data: {json.dumps({'type': 'token', 'content': answer})}\n\n"
+        except Exception as exc:
+            logger.error(f"Agent execution error: {exc}")
+            yield f"data: {json.dumps({'type': 'error', 'content': str(exc)})}\n\n"
+        yield "data: [DONE]\n\n"
+        return
+
     # Yield status event
     yield f"data: {json.dumps({'type': 'status', 'content': f'Searching Graph for: {search_query}'})}\n\n"
 
@@ -190,6 +207,17 @@ async def chat_stream(req: ChatStreamRequest):
         event_generator(req),
         media_type="text/event-stream",
     )
+
+
+@app.post("/api/agent")
+async def execute_agent(req: AgentRequest):
+    """Direct execution endpoint for 3-node LangGraph Agent."""
+    try:
+        answer = run_agent(req.question)
+        return {"question": req.question, "answer": answer}
+    except Exception as exc:
+        logger.error(f"Agent API Error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.post("/api/index")

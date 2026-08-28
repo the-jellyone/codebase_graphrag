@@ -17,9 +17,10 @@ from graph.queries import (
     vector_search_classes,
     get_subgraph_around_nodes,
 )
+from config import OLLAMA_EMBED_MODEL
 
 
-def get_query_embedding(query_text: str, model: str = "qwen3-embed-0.6B") -> list[float]:
+def get_query_embedding(query_text: str, model: str = OLLAMA_EMBED_MODEL) -> list[float]:
     """Generate a vector embedding for a user query via local Ollama."""
     response = ollama.embeddings(model=model, prompt=query_text)
     return response["embedding"]
@@ -28,7 +29,7 @@ def get_query_embedding(query_text: str, model: str = "qwen3-embed-0.6B") -> lis
 def retrieve_subgraph_context(
     query_text: str,
     driver: Driver,
-    embed_model: str = "qwen3-embed-0.6B",
+    embed_model: str = OLLAMA_EMBED_MODEL,
     top_k: int = 3,
     hops: int = 2,
 ) -> tuple[str, list[dict[str, Any]], dict[str, float]]:
