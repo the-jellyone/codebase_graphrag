@@ -58,9 +58,11 @@ from ingestion.models import (
 
 PY_LANGUAGE = Language(tspython.language())
 TS_LANGUAGE = Language(tstypescript.language_typescript())
+TSX_LANGUAGE = Language(tstypescript.language_tsx())
 
 _py_parser = Parser(PY_LANGUAGE)
 _ts_parser = Parser(TS_LANGUAGE)
+_tsx_parser = Parser(TSX_LANGUAGE)
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +71,7 @@ _ts_parser = Parser(TS_LANGUAGE)
 
 def parse_repo(repo_path: Path) -> ParseResult:
     """
-    Parse every Python and TypeScript file in `repo_path`.
+    Parse every Python, JavaScript, JSX, TypeScript, and TSX file in `repo_path`.
 
     Returns a ParseResult with all nodes and edges ready for Neo4j/ChromaDB.
     """
@@ -77,9 +79,16 @@ def parse_repo(repo_path: Path) -> ParseResult:
     result = ParseResult(repo_path=str(repo_path))
 
     py_files = _collect_files(repo_path, ".py")
-    ts_files = _collect_files(repo_path, ".ts") + _collect_files(repo_path, ".tsx")
+    js_ts_files = (
+        _collect_files(repo_path, ".ts")
+        + _collect_files(repo_path, ".tsx")
+        + _collect_files(repo_path, ".js")
+        + _collect_files(repo_path, ".jsx")
+        + _collect_files(repo_path, ".mjs")
+        + _collect_files(repo_path, ".cjs")
+    )
 
-    logger.info(f"Found {len(py_files)} Python + {len(ts_files)} TypeScript files")
+    logger.info(f"Found {len(py_files)} Python + {len(js_ts_files)} JS/JSX/TS/TSX files in {repo_path.name}")
 
     for filepath in py_files:
         try:
@@ -87,11 +96,24 @@ def parse_repo(repo_path: Path) -> ParseResult:
         except Exception as exc:
             logger.warning(f"Skipping {filepath.name}: {exc}")
 
-    for filepath in ts_files:
+    for filepath in js_ts_files:
         try:
             _parse_typescript_file(filepath, repo_path, result)
         except Exception as exc:
             logger.warning(f"Skipping {filepath.name}: {exc}")
+
+    # Also register any key config/doc files as Module nodes so they exist in graph
+    for ext in (".json", ".yaml", ".yml", ".md", ".html", ".css"):
+        for extra_file in _collect_files(repo_path, ext):
+            rel = str(extra_file.relative_to(repo_path))
+            mod_id = _module_id(rel)
+            if not any(n.id == mod_id for n in result.nodes):
+                result.nodes.append(ParsedNode(
+                    id=mod_id,
+                    type=NodeType.MODULE,
+                    name=extra_file.name,
+                    file=rel,
+                ))
 
     logger.success(
         f"Parse complete → {result.node_count()} nodes, {result.edge_count()} edges"
@@ -102,9 +124,6 @@ def parse_repo(repo_path: Path) -> ParseResult:
 def parse_single_file(file_path: Path, repo_root: Path) -> ParseResult:
     """
     Parse a single file and return its nodes and edges.
-
-    Used by the incremental updater to re-parse only changed files
-    instead of the entire repository.
     """
     file_path = Path(file_path).resolve()
     repo_root = Path(repo_root).resolve()
@@ -113,10 +132,10 @@ def parse_single_file(file_path: Path, repo_root: Path) -> ParseResult:
     suffix = file_path.suffix.lower()
     if suffix == ".py":
         _parse_python_file(file_path, repo_root, result)
-    elif suffix in (".ts", ".tsx"):
+    elif suffix in (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"):
         _parse_typescript_file(file_path, repo_root, result)
     else:
-        logger.warning(f"Unsupported file type: {file_path.suffix}")
+        logger.warning(f"Unsupported file type for code AST: {file_path.suffix}")
 
     return result
 
@@ -568,8 +587,15 @@ def _emit_config_read(
 def _parse_typescript_file(filepath: Path, repo_root: Path, result: ParseResult) -> None:
     source_bytes = filepath.read_bytes()
     source_text  = source_bytes.decode("utf-8", errors="ignore")
-    tree         = _ts_parser.parse(source_bytes)
-    root         = tree.root_node
+    
+    # Use TSX parser for .tsx, .jsx, and .js files to handle React JSX syntax
+    suffix = filepath.suffix.lower()
+    if suffix in (".tsx", ".jsx", ".js"):
+        tree = _tsx_parser.parse(source_bytes)
+    else:
+        tree = _ts_parser.parse(source_bytes)
+
+    root = tree.root_node
 
     rel_path  = str(filepath.relative_to(repo_root))
     module_id = _module_id(rel_path)
@@ -585,10 +611,11 @@ def _parse_typescript_file(filepath: Path, repo_root: Path, result: ParseResult)
 
     _ts_extract_imports(root, module_id, rel_path, repo_root, source_text, result)
     _ts_extract_interfaces(root, module_id, rel_path, source_text, result)
+    _ts_extract_classes(root, module_id, rel_path, source_text, result)
     _ts_extract_functions(root, module_id, rel_path, source_text, result)
 
 
-# ── TypeScript: IMPORTS ────────────────────────────────────────────────────
+# ── TypeScript/JavaScript: IMPORTS ────────────────────────────────────────
 
 def _ts_extract_imports(
     root: Node, module_id: str, rel_path: str,
@@ -597,7 +624,7 @@ def _ts_extract_imports(
     """
     Handle ES module imports:
       import { foo } from './bar'
-      import * as foo from '../baz'
+      import App from './App.jsx'
     """
     for node in _iter_nodes(root, {"import_statement"}):
         source_clause = None
@@ -618,106 +645,162 @@ def _ts_extract_imports(
 
 
 def _ts_resolve_import_path(import_str: str, from_rel: str, repo_root: Path) -> Optional[str]:
-    """Resolve a relative TS import path to a repo-relative file path."""
+    """Resolve a relative JS/JSX/TS import path to a repo-relative file path."""
     from_dir = (repo_root / from_rel).parent
     candidate = (from_dir / import_str).resolve()
-    for ext in ("", ".ts", ".tsx", "/index.ts"):
+    for ext in ("", ".jsx", ".js", ".tsx", ".ts", "/index.jsx", "/index.js", "/index.tsx", "/index.ts"):
         p = Path(str(candidate) + ext)
-        if p.exists():
+        if p.exists() and p.is_file():
             return str(p.relative_to(repo_root))
     return None
 
 
-# ── TypeScript: interfaces (DEFINES_TYPE) ─────────────────────────────────
+# ── TypeScript/JavaScript: Interfaces & Types ─────────────────────────────
 
 def _ts_extract_interfaces(
     root: Node, module_id: str, rel_path: str, source: str, result: ParseResult,
 ) -> None:
-    for node in _iter_nodes(root, {"interface_declaration"}):
+    for node in _iter_nodes(root, {"interface_declaration", "type_alias_declaration"}):
         name_node = node.child_by_field_name("name")
         if not name_node:
             continue
         iface_name = _node_text(name_node, source)
-        iface_id   = _node_id(rel_path, iface_name)
+        iface_id = _node_id(rel_path, iface_name)
 
         result.nodes.append(ParsedNode(
             id=iface_id,
-            type=NodeType.CLASS,   # treat interfaces as Class nodes in KG
+            type=NodeType.CLASS,
             name=iface_name,
             file=rel_path,
             line=node.start_point[0] + 1,
             source_code=_node_text(node, source),
         ))
 
-        # DEFINES_TYPE edge: module → interface
         result.edges.append(ParsedEdge(
             source=module_id, target=iface_id, type=EdgeType.CONTAINS
         ))
 
 
-# ── TypeScript: functions ─────────────────────────────────────────────────
+# ── TypeScript/JavaScript: Classes ─────────────────────────────────────────
 
-_TS_FUNC_TYPES = {
-    "function_declaration",
-    "arrow_function",
-    "method_definition",
-    "lexical_declaration",   # const foo = async (...) => ...
-}
+def _ts_extract_classes(
+    root: Node, module_id: str, rel_path: str, source: str, result: ParseResult,
+) -> None:
+    for node in _iter_nodes(root, {"class_declaration", "class"}):
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            continue
+        cls_name = _node_text(name_node, source)
+        cls_id = _node_id(rel_path, cls_name)
 
+        result.nodes.append(ParsedNode(
+            id=cls_id,
+            type=NodeType.CLASS,
+            name=cls_name,
+            file=rel_path,
+            line=node.start_point[0] + 1,
+            source_code=_node_text(node, source),
+        ))
+
+        result.edges.append(ParsedEdge(
+            source=module_id, target=cls_id, type=EdgeType.CONTAINS
+        ))
+
+
+# ── TypeScript/JavaScript: Functions & React Components ────────────────────
 
 def _ts_extract_functions(
     root: Node, module_id: str, rel_path: str, source: str, result: ParseResult,
 ) -> None:
     """
-    Extract top-level functions and exported arrow functions.
-    Also emit CALLS edges for call expressions inside function bodies.
+    Extract top-level functions, methods, and React arrow-function components (const App = () => ...).
     """
-    for node in _iter_nodes(root, {"function_declaration", "export_statement"}):
-        func_node = node if node.type == "function_declaration" \
-            else _get_child_by_type(node, "function_declaration")
-        if not func_node:
-            continue
-
-        name_node = func_node.child_by_field_name("name")
+    # 1. Standard function declarations
+    for node in _iter_nodes(root, {"function_declaration", "function"}):
+        name_node = node.child_by_field_name("name")
         if not name_node:
             continue
-
         func_name = _node_text(name_node, source)
-        func_id   = _node_id(rel_path, func_name)
+        func_id = _node_id(rel_path, func_name)
 
-        result.nodes.append(ParsedNode(
-            id=func_id,
-            type=NodeType.FUNCTION,
-            name=func_name,
-            file=rel_path,
-            line=func_node.start_point[0] + 1,
-            source_code=_node_text(func_node, source),
-        ))
+        if not any(n.id == func_id for n in result.nodes):
+            result.nodes.append(ParsedNode(
+                id=func_id,
+                type=NodeType.FUNCTION,
+                name=func_name,
+                file=rel_path,
+                line=node.start_point[0] + 1,
+                source_code=_node_text(node, source),
+            ))
+            result.edges.append(ParsedEdge(
+                source=module_id, target=func_id, type=EdgeType.CONTAINS
+            ))
+        _ts_extract_calls(node, func_id, source, result)
 
-        result.edges.append(ParsedEdge(
-            source=module_id, target=func_id, type=EdgeType.CONTAINS
-        ))
+    # 2. Arrow functions & function expressions assigned to variables (const Component = (...) => ...)
+    for node in _iter_nodes(root, {"variable_declarator"}):
+        name_node = node.child_by_field_name("name")
+        value_node = node.child_by_field_name("value")
+        if not name_node or not value_node:
+            continue
+        if value_node.type in ("arrow_function", "function_expression"):
+            func_name = _node_text(name_node, source)
+            func_id = _node_id(rel_path, func_name)
 
-        # CALLS inside this function
-        _ts_extract_calls(func_node, func_id, source, result)
+            if not any(n.id == func_id for n in result.nodes):
+                result.nodes.append(ParsedNode(
+                    id=func_id,
+                    type=NodeType.FUNCTION,
+                    name=func_name,
+                    file=rel_path,
+                    line=node.start_point[0] + 1,
+                    source_code=_node_text(node, source),
+                ))
+                result.edges.append(ParsedEdge(
+                    source=module_id, target=func_id, type=EdgeType.CONTAINS
+                ))
+            _ts_extract_calls(value_node, func_id, source, result)
 
 
 def _ts_extract_calls(
     func_node: Node, func_id: str, source: str, result: ParseResult,
 ) -> None:
-    """Emit CALLS edges for call_expression nodes inside a TS function."""
+    """Emit CALLS edges for call_expression nodes and JSX element tags (<Navbar />, <Card />) inside a function/component."""
+    # 1. Standard JavaScript function / method calls
     for node in _iter_nodes(func_node, {"call_expression"}):
         func = node.child_by_field_name("function")
         if not func:
             continue
         callee_text = _node_text(func, source)
         if callee_text:
-            # Use callee text as target — will be resolved by graph builder
             result.edges.append(ParsedEdge(
                 source=func_id,
                 target=f"ts_call::{callee_text}",
                 type=EdgeType.CALLS,
                 properties={"raw_callee": callee_text},
+            ))
+
+    # 2. React JSX Component Render Calls (<Navbar />, <AllergenCard item={item} />)
+    for node in _iter_nodes(func_node, {"jsx_element", "jsx_self_closing_element"}):
+        tag_name = None
+        if node.type == "jsx_self_closing_element":
+            name_node = node.child_by_field_name("name")
+            if name_node:
+                tag_name = _node_text(name_node, source)
+        elif node.type == "jsx_element":
+            open_elem = _get_child_by_type(node, "jsx_opening_element")
+            if open_elem:
+                name_node = open_elem.child_by_field_name("name")
+                if name_node:
+                    tag_name = _node_text(name_node, source)
+
+        # In React, capitalized tags are custom components (e.g. <Navbar />, not <div> or <span>)
+        if tag_name and tag_name[0].isupper():
+            result.edges.append(ParsedEdge(
+                source=func_id,
+                target=f"ts_call::{tag_name}",
+                type=EdgeType.CALLS,
+                properties={"raw_callee": tag_name, "is_jsx_component": True},
             ))
 
 
