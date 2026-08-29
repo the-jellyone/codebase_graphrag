@@ -1,53 +1,87 @@
-# Codebase Graph RAG 🕸️
+# CodeGraph 🕸️
+### Local, Zero-Data-Leakage Codebase GraphRAG & Multi-Hop Autonomous Agent
 
-A 100% local, fully offline **Codebase Intelligence Engine**. Ingests multi-language code repositories (Python, TypeScript), builds a Knowledge Graph in Neo4j with native vector indexing, and performs Conversational Graph RAG to answer multi-hop architectural questions.
+**CodeGraph** transforms full-stack codebases (Python, JavaScript, React JSX, TypeScript) into **AST-derived Knowledge Graphs in Neo4j**, enabling high-accuracy **Hybrid GraphRAG** and **Autonomous Multi-Hop Relational Reasoning** via LangGraph.
+
+The entire engine runs **100% locally and offline** using local Ollama models and self-hosted Neo4j — zero code leaves your machine.
 
 ---
 
-## Architecture Overview
+## 🌟 Why CodeGraph? (GraphRAG vs. Traditional RAG)
 
+Traditional Code RAG models treat code like flat text, slicing files into arbitrary 500-token chunks. This breaks semantic structure:
+- ❌ **Lost Call Hierarchies:** Cannot trace multi-hop function calls across files (`A -> B -> C`).
+- ❌ **No Impact Analysis:** Cannot reliably determine *"what breaks if I change function X?"*.
+- ❌ **Hallucinations on Dependencies:** Misses class method encapsulation, inheritance, and module imports.
+
+### How CodeGraph Solves This:
+- 🌲 **Tree-sitter AST Parsing:** Accurately extracts Functions, Classes, React JSX Components, Module imports, and Call expressions.
+- 🕸️ **Neo4j Code Topology:** Stores symbols as interconnected nodes with `CALLS`, `CONTAINS`, `IMPORTS`, and `HAS_METHOD` relationships.
+- ⚡ **Hybrid GraphRAG:** Direct dense vector search + 2-hop subgraph context extraction for fast, targeted answers.
+- 🤖 **3-Node LangGraph Agent:** An autonomous cycle (*Orchestrator → Executor → Synthesizer*) that traces call chains, executes Cypher queries, and checks for knowledge gaps before answering.
+
+---
+
+## 🎯 Key Features
+
+- **Polyglot Full-Stack AST Parsing:** Ingests Python (`.py`), JavaScript (`.js`, `.mjs`, `.cjs`), React JSX (`.jsx`), and TypeScript (`.ts`, `.tsx`).
+- **Dual Query Modes:**
+  - **Graph RAG Mode (Fast):** 1-hop vector search + multi-hop graph subgraph context.
+  - **Agent Mode (Autonomous):** 3-node LangGraph loop with step-by-step reasoning trace drawer.
+- **Isolated Multi-Repo Partitioning:** Index multiple repositories in the same database without cross-repo data contamination (isolated via composite `repo_id`).
+- **Incremental File Syncing:** Hashes files with SHA-256 and only re-parses modified or added files.
+- **Single-Click Repo Cleanup:** Deleting a repository wipes all its graph nodes from Neo4j (`DETACH DELETE`) and cascades SQLite chat cleanup.
+- **Interactive Knowledge Graph Hub:** Top status card (live nodes, edges, sync status) + 6 ready-to-run repo-scoped Cypher queries + 1-click **Launch in Neo4j Browser**.
+- **Native OS Folder Picker:** Choose directories directly through your native OS file dialog (`webkitdirectory`), drag-and-drop zone, or quick project presets.
+- **Real-Time Streaming:** Server-Sent Events (SSE) token streaming for zero perceived latency.
+
+---
+
+## 🧠 Recommended Local Models (Ollama)
+
+CodeGraph integrates seamlessly with [Ollama](https://ollama.ai). Below are recommended model pairings:
+
+| Model Type | Recommended Model | Size | Pull Command | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **LLM (Best Overall)** | `qwen2.5-coder:7b` | 4.7 GB | `ollama pull qwen2.5-coder:7b` | Outstanding code reasoning, AST tool execution, and synthesis. |
+| **LLM (Lightweight / Fast)** | `llama3.2:3b` | 2.0 GB | `ollama pull llama3.2` | Fast responses on standard laptops. |
+| **LLM (Deep Reasoning)** | `deepseek-coder-v2:16b` | 8.9 GB | `ollama pull deepseek-coder-v2:16b` | Enterprise-grade multi-hop architecture analysis. |
+| **Embedding Model** | `bge-large` | 1.3 GB | `ollama pull bge-large` | High semantic search accuracy across code docstrings & names. |
+| **Embedding Model (Alternative)** | `nomic-embed-text` | 274 MB | `ollama pull nomic-embed-text` | Ultra-fast lightweight embeddings. |
+
+> Configure your preferred models in `config.py` (`OLLAMA_LLM_MODEL` and `OLLAMA_EMBED_MODEL`).
+
+---
+
+## 📋 System Requirements & Prerequisites
+
+1. **Docker Desktop**: For running the Neo4j 5.x graph database.
+2. **Python 3.10+**: For backend API and parsing pipeline.
+3. **Node.js 18+**: For Vite React frontend.
+4. **Ollama**: Running locally with your chosen LLM and embedding model.
+
+---
+
+## 🚀 Quickstart Guide
+
+### 1. Clone & Set Up Environment
+
+```bash
+git clone https://github.com/your-username/codebase_graphrag.git
+cd codebase_graphrag
+
+# Create and activate Python virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
+pip install -r requirements.txt
 ```
- ┌─────────────────────────────────────────────────────────────────────────┐
- │                   REACT + TAILWIND FRONTEND (`frontend/`)               │
- │                   URL: http://localhost:5173                            │
- │                                                                         │
- │  • Dark-Mode Chat Interface (ChatGPT / Claude style)                    │
- │  • Real-Time SSE Token Streaming                                        │
- │  • Conversational Memory & Multi-turn Chat                              │
- │  • Retrieved Subgraph Accordion + Timing Metrics                        │
- │  • Target Repo Indexing Controls                                        │
- └────────────────────────────────────┬────────────────────────────────────┘
-                                      │ HTTP / SSE Streams (Port 8000)
-                                      ▼
- ┌─────────────────────────────────────────────────────────────────────────┐
- │                   FASTAPI BACKEND (`interface/api.py`)                  │
- │                   URL: http://localhost:8000                            │
- │                                                                         │
- │  • Conversational Query Rewriter (Resolves "it", "this file" via history) │
- │  • Hybrid Graph RAG Engine (`retrieval/retriever.py`)                   │
- │    Vector Search (`qwen3-embed-0.6B`) → Seed Nodes → Cypher 2-Hop        │
- │  • Local Ollama Streaming Engine (`qwen3-4b`)                           │
- └─────────────────────────────────────────────────────────────────────────┘
-```
 
 ---
 
-## Prerequisites
+### 2. Start Neo4j via Docker
 
-1. **Docker**: For running Neo4j 5.x graph database.
-2. **Node.js (v18+)**: For running the React frontend.
-3. **Python (3.10+)**: For the backend pipeline.
-4. **Ollama**: Running locally with pulled models:
-   ```bash
-   ollama pull qwen3-embed-0.6B
-   ollama pull qwen3-4b
-   ```
-
----
-
-## Setup & Running Guide
-
-### Step 1: Start Neo4j via Docker
 ```bash
 docker compose up -d neo4j
 ```
@@ -55,67 +89,73 @@ docker compose up -d neo4j
 
 ---
 
-### Step 2: Start FastAPI Backend
+### 3. Start Local Ollama Models
 
 ```bash
-# Activate virtualenv (or create if needed: python3 -m venv venv)
-source venv/bin/activate
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Launch FastAPI Server
-python -m interface.api
+ollama run qwen2.5-coder:7b
+ollama pull bge-large
 ```
-- **Backend Server**: [http://localhost:8000](http://localhost:8000)
-- **Healthcheck**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
 ---
 
-### Step 3: Start React Frontend
+### 4. Start FastAPI Backend
+
+```bash
+# From repository root (with venv activated)
+python -m interface.api
+```
+- **Backend API**: [http://localhost:8000](http://localhost:8000)
+- **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+### 5. Start React Frontend
 
 In a new terminal window:
 
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Install Node dependencies (if first time)
 npm install
-
-# Start Vite React Dev Server
 npm run dev
 ```
-- **React Web App**: [http://localhost:5173](http://localhost:5173)
+- **Web Interface**: [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## How to Use
+## 💡 How to Use
 
 1. Open **[http://localhost:5173](http://localhost:5173)** in your browser.
-2. Ensure status indicator shows **🟢 Neo4j Connected**.
-3. In the sidebar, enter your target repository path (e.g. `test_repo`) and click **⚡ Index Repository**.
-4. Ask multi-hop questions about the codebase:
-   - *"What does user_service.py do?"*
-   - *"What exceptions does it raise?"* (Conversational memory resolves *"it"* automatically!).
-   - *"What functions call repository.save?"*
+2. Click **`+ Add Repository`** in the sidebar:
+   - Click **"Click to Browse Folder from Disk"** to select a project folder from your computer.
+   - Or click one of the quick suggestion chips (e.g. `test_repo`).
+3. Click **Add & Ingest**. The background indexing tracker will discover files, run Tree-sitter AST parsing, generate embeddings, and construct the Neo4j graph.
+4. Select your mode (**Graph RAG** or **Agent**) and ask questions:
+   - *"What is this repository about and what are its main services?"*
+   - *"Trace the complete call chain starting from user login."*
+   - *"What breaks if I change `classify_allergens` in the backend?"*
+   - *"Which React components render the allergen cards in the frontend?"*
+5. Click **View KG** on the top right to inspect live nodes/edges and copy or run ready-to-use Cypher queries in Neo4j Browser.
 
 ---
 
-## Project Structure
+## 📊 Evaluation & Benchmarking (RAGAS)
 
+CodeGraph includes an automated evaluation pipeline measuring **Faithfulness**, **Answer Relevancy**, **Context Precision**, and **Context Recall** on multi-hop code reasoning:
+
+```bash
+python -m evaluation.ragas_eval
 ```
-codebase_graphrag/
-├── ingestion/         # tree-sitter multi-language parser (Python, TypeScript)
-├── graph/             # Neo4j schema, batch loader, Cypher query library
-├── embeddings/        # node text representation + qwen3 embedding generator
-├── retrieval/         # hybrid Graph RAG retriever (vector search + graph traversal)
-├── agent/             # LangGraph multi-node reasoning workflows
-├── interface/         # FastAPI backend server (api.py)
-├── frontend/          # React + Tailwind CSS dark-theme frontend
-├── test_repo/         # hand-crafted FastAPI + TS Task Manager app (ground truth)
-├── data/              # parsed.json, local chat sessions
-├── docker-compose.yml # containerized Neo4j stack
-├── requirements.txt   # Python dependencies
-└── README.md
-```
+
+---
+
+## 🔒 Privacy & Security Guarantee
+
+- **100% Offline**: All models, embeddings, graph storage, and chat histories remain strictly on `localhost`.
+- **Zero Telemetry**: No code, metadata, or queries are ever sent to external cloud APIs.
+- **Enterprise-Ready**: Safe for private, proprietary, or regulated codebases.
+
+---
+
+## 📄 License
+
+MIT License — free for personal, educational, and commercial use.
