@@ -26,7 +26,11 @@ def executor_node(state: AgentState) -> AgentState:
     last = dict(tool_calls[-1])
 
     tool_name = last["tool"]
-    tool_args = last["args"]
+    tool_args = dict(last.get("args", {}))
+    
+    # Inject repo_id from state if available and not explicitly provided in args
+    if state.get("repo_id") and not tool_args.get("repo_id"):
+        tool_args["repo_id"] = state["repo_id"]
 
     if tool_name not in TOOL_REGISTRY:
         last["result"] = {

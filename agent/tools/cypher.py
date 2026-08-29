@@ -82,6 +82,7 @@ def run_cypher(args: dict) -> dict:
     Args:
         args:
             intent (str): What you want to find, in plain English.
+            repo_id (str, optional): Scopes the query to a specific repository.
 
     Returns:
         dict with keys:
@@ -90,19 +91,24 @@ def run_cypher(args: dict) -> dict:
             error (str | None): Set if both attempts failed.
     """
     intent = args.get("intent", "")
+    repo_id = args.get("repo_id", "")
     if not intent:
         return {"error": "intent is required", "records": [], "cypher": ""}
+
+    effective_intent = intent
+    if repo_id:
+        effective_intent = f"{intent} (Ensure all node matches filter by repo_id = '{repo_id}')"
 
     cypher = ""
     # First attempt
     try:
-        cypher = _generate_cypher(intent)
+        cypher = _generate_cypher(effective_intent)
         records = _execute_cypher(cypher)
         return {"records": records, "cypher": cypher, "error": None}
     except Exception as first_error:
         # Silent self-repair: retry once with error context
         try:
-            cypher = _generate_cypher(intent, error_context=str(first_error))
+            cypher = _generate_cypher(effective_intent, error_context=str(first_error))
             records = _execute_cypher(cypher)
             return {"records": records, "cypher": cypher, "error": None, "repaired": True}
         except Exception as second_error:
@@ -153,6 +159,7 @@ def list_by_pattern(args: dict) -> dict:
             pattern (str): One of: no_docstring, high_method_count, unused_function,
                            high_coupling, no_test_coverage.
             limit (int, optional): Max results to return. Default 10.
+            repo_id (str, optional): Repo scope.
 
     Returns:
         dict with keys:
@@ -163,6 +170,7 @@ def list_by_pattern(args: dict) -> dict:
     """
     pattern = args.get("pattern", "")
     limit = args.get("limit", 10)
+    repo_id = args.get("repo_id", "")
 
     if pattern not in _PATTERN_INTENTS:
         return {
@@ -173,6 +181,6 @@ def list_by_pattern(args: dict) -> dict:
         }
 
     intent = _PATTERN_INTENTS[pattern].format(limit=limit)
-    result = run_cypher({"intent": intent})
+    result = run_cypher({"intent": intent, "repo_id": repo_id})
     result["pattern"] = pattern
     return result

@@ -8,7 +8,7 @@ Topology:
                            ↓ (if complete or cap hit)
                           END
 
-Entry point: run_agent(question: str) -> str
+Entry point: run_agent(question: str, repo_id: str) -> dict
 """
 
 import time
@@ -47,27 +47,35 @@ def _build_graph() -> StateGraph:
 _GRAPH = _build_graph()
 
 
-def run_agent(question: str) -> str:
+def run_agent(question: str, repo_id: str = "") -> dict:
     """
-    Run the agent on a question and return the final answer.
+    Run the agent on a question and return a structured result dict.
 
     Args:
         question: Natural language question about the indexed codebase.
+        repo_id:  Repo identifier — scopes all graph queries to this repo.
 
     Returns:
-        Final answer string (markdown-formatted).
+        dict with keys:
+            answer (str): Final markdown-formatted answer.
+            trace (list): List of {tool, args} dicts for the reasoning trace.
+            is_partial (bool): True if iteration cap was hit.
+            highlighted_nodes (list): Node names relevant to this answer.
     """
     run_id = make_run_id(question)
     start_time = time.time()
 
     initial_state: AgentState = {
         "question": question,
+        "repo_id": repo_id,
         "run_id": run_id,
         "tool_calls": [],
         "missing": "",
         "iterations": 0,
         "final_answer": "",
         "is_complete": False,
+        "is_partial": False,
+        "highlighted_nodes": [],
     }
 
     save_run_state(run_id, 0, "init", initial_state)
@@ -77,4 +85,15 @@ def run_agent(question: str) -> str:
     wall_time = time.time() - start_time
     save_final_run(run_id, final_state, wall_time)
 
-    return final_state.get("final_answer", "Agent did not produce a final answer.")
+    # Build reasoning trace from tool_calls (tool name + args only, not results)
+    trace = [
+        {"tool": tc["tool"], "args": tc.get("args", {})}
+        for tc in final_state.get("tool_calls", [])
+    ]
+
+    return {
+        "answer": final_state.get("final_answer", "Agent did not produce a final answer."),
+        "trace": trace,
+        "is_partial": final_state.get("is_partial", False),
+        "highlighted_nodes": final_state.get("highlighted_nodes", []),
+    }

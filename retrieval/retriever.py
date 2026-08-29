@@ -3,6 +3,7 @@ Hybrid Graph RAG Retriever.
 
 Combines native Neo4j vector search with multi-hop Cypher graph traversals
 to retrieve structured relational code context for local LLMs.
+All retrieval is scoped by repo_id for multi-repo isolation.
 """
 
 from __future__ import annotations
@@ -32,11 +33,12 @@ def retrieve_subgraph_context(
     embed_model: str = OLLAMA_EMBED_MODEL,
     top_k: int = 3,
     hops: int = 2,
+    repo_id: str = "",
 ) -> tuple[str, list[dict[str, Any]], dict[str, float]]:
     """
-    Execute Hybrid Graph RAG Retrieval:
+    Execute Hybrid Graph RAG Retrieval scoped to a repo_id:
     1. Embed user query using 0.6B embedding model
-    2. Perform vector search in Neo4j to find top-k seed nodes
+    2. Perform vector search in Neo4j to find top-k seed nodes (filtered by repo_id)
     3. Perform Cypher traversal around seed nodes to extract multi-hop subgraph
     4. Format retrieved subgraph into structured text context
 
@@ -51,10 +53,10 @@ def retrieve_subgraph_context(
     t1 = time.perf_counter()
     metrics["embed_ms"] = round((t1 - t0) * 1000, 2)
 
-    # 2. Vector Search (Seed Nodes)
+    # 2. Vector Search (Seed Nodes) — scoped to repo_id
     t2 = time.perf_counter()
-    seed_funcs = vector_search_functions(driver, query_vec, top_k=top_k)
-    seed_classes = vector_search_classes(driver, query_vec, top_k=top_k)
+    seed_funcs = vector_search_functions(driver, query_vec, top_k=top_k, repo_id=repo_id)
+    seed_classes = vector_search_classes(driver, query_vec, top_k=top_k, repo_id=repo_id)
     t3 = time.perf_counter()
     metrics["vector_search_ms"] = round((t3 - t2) * 1000, 2)
 
@@ -64,9 +66,9 @@ def retrieve_subgraph_context(
 
     seed_ids = [n["id"] for n in seed_nodes]
 
-    # 3. Graph Traversal (Multi-hop Subgraph)
+    # 3. Graph Traversal (Multi-hop Subgraph) — scoped to repo_id
     t4 = time.perf_counter()
-    subgraph_edges = get_subgraph_around_nodes(driver, seed_ids, hops=hops)
+    subgraph_edges = get_subgraph_around_nodes(driver, seed_ids, hops=hops, repo_id=repo_id)
     t5 = time.perf_counter()
     metrics["graph_traversal_ms"] = round((t5 - t4) * 1000, 2)
     metrics["total_retrieval_ms"] = round((t5 - t0) * 1000, 2)

@@ -40,8 +40,10 @@ tools:
     args: "{context: str, node_id?: str}"
 
 decision_rules:
-  - For structural questions (list, find all, count) prefer run_cypher or list_by_pattern over graph_rag_search.
-  - If the question names a specific function or class, prefer trace_impact or get_call_chain first.
+  - For open-ended, architectural, improvement, or feature suggestion questions, call suggest_fix or graph_rag_search once with a broad query to survey the codebase, then allow the Synthesizer to answer.
+  - For structural questions (list, find all, count), prefer run_cypher or list_by_pattern over graph_rag_search.
+  - If the question names a specific function or class (e.g. 'create_user', 'AuthMiddleware'), call trace_impact or get_call_chain on that specific entity.
+  - NEVER pass pattern names (like 'unused_function', 'no_docstring') as a node_id to get_call_chain or trace_impact. Node IDs are always actual symbols (e.g. 'services/auth.py::login').
   - If Synthesizer reported something missing, pick the tool most likely to fetch exactly that.
   - If the same tool returned nothing useful twice with the same args, try a different tool or different args.
 

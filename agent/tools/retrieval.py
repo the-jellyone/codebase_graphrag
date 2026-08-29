@@ -13,11 +13,12 @@ from config import OLLAMA_EMBED_MODEL
 
 def graph_rag_search(args: dict) -> dict:
     """
-    Perform hybrid graph RAG retrieval.
+    Perform hybrid graph RAG retrieval, scoped to the current repo.
 
     Args:
         args:
             query (str): Natural language question or keyword phrase.
+            repo_id (str, optional): Repo scope for graph queries.
 
     Returns:
         dict with keys:
@@ -27,6 +28,7 @@ def graph_rag_search(args: dict) -> dict:
             error (str | None): Set if retrieval failed.
     """
     query = args.get("query", "")
+    repo_id = args.get("repo_id", "")
     if not query:
         return {"error": "query is required", "context": "", "seed_nodes": [], "metrics": {}}
 
@@ -36,6 +38,7 @@ def graph_rag_search(args: dict) -> dict:
             query_text=query,
             driver=driver,
             embed_model=OLLAMA_EMBED_MODEL,
+            repo_id=repo_id,
         )
         return {
             "context": context_str,
